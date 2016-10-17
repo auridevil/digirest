@@ -6,7 +6,8 @@
 'use strict';
 
 /** global requires and vars */
-var MODULE_NAME = 'MatchTextStageOperation';
+const MODULE_NAME = 'MatchTextStageOperation';
+const underscore = require('underscore');
 
 
 /**
@@ -24,8 +25,9 @@ function _addStage(funcParamObj,onExecuteComplete){
 
     /** operation configuration */
     let pipelineFieldName = operationObj.conf['params.payload.pipelinename'] ? operationObj.conf['params.payload.pipelinename'] : 'pipeline';
-    let text = operationObj.conf['params.text']
+    let text = operationObj.conf['params.text'];
     let additionalParams = operationObj.conf['params.query.fields']?operationObj.conf['params.query.fields'].split(','):[];
+    let regexField = operationObj.conf['params.regex']?operationObj.conf['params.regex'].split(','):[];
 
     try {
 
@@ -33,16 +35,37 @@ function _addStage(funcParamObj,onExecuteComplete){
         let pipelineArray = data[pipelineFieldName];
         let matchStage = {};
         matchStage['$match'] = {};
+        let parameter = {};
+
 
         // create match stage
         for(let par of additionalParams){
             // condStage[par] = data[par];
-            matchStage['$match'][par] = data[par];
+            if(data[par]) {
+                matchStage['$match'][par] = data[par];
+            }
         }
 
-        matchStage['$match']['$text'] = {'$search':data[text]};
-
-
+        // create text search
+        if(data[text]) {
+            if (regexField.length == 0) {
+                matchStage['$match']['$text'] = {'$search': data[text]};
+            } else {
+                var reg = new RegExp(data[text], 'i');
+                /*
+                 matchStage['$match']['$or']=[{},{}];
+                 matchStage['$match']['$or'][0][regexField] = {'$regex':reg};
+                 matchStage['$match']['$or'][1]['$text'] = {'$search':data[text]};
+                 */
+                matchStage['$match']['$or'] = [];
+                for (var i = 0; i < regexField.length; i++) {
+                    matchStage['$match']['$or'].push({});
+                    matchStage['$match']['$or'][i][regexField[i]] = {'$regex': reg};
+                }
+                matchStage['$match']['$or'].push({'$text': {'$search': data[text]}});
+            }
+        }
+        
         // build up togheter
         if(!pipelineArray){
             pipelineArray=[];

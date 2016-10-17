@@ -18,46 +18,47 @@ var util = require('util');
  * @param onExecuteComplete
  * @private
  */
-function _invalidate(funcParamObj,onExecuteComplete){
+function _invalidate(funcParamObj, onExecuteComplete) {
 
-    /** default object content of an operation */
-    var operationObj = funcParamObj.operationRef;
-    var httpRequest = funcParamObj.request;
-    var httpResponse = funcParamObj.response;
-    var data = funcParamObj.payload;
+  /** default object content of an operation */
+  var operationObj = funcParamObj.operationRef;
+  var httpRequest = funcParamObj.request;
+  var httpResponse = funcParamObj.response;
+  var data = funcParamObj.payload;
 
-    /** operation configuration */
-    var cacheKey = operationObj.conf['params.cachekey'];
-    var qualifications = operationObj.conf['params.qualifications'].split(',');
+  /** operation configuration */
+  var cacheKey = operationObj.conf['params.cachekey'];
+  var qualifications = operationObj.conf['params.qualifications'] ? operationObj.conf['params.qualifications'].split(',') : [];
 
-    try {
-        var query = {};
+  /** release the route */
+  funcParamObj.payload = data;
+  onExecuteComplete(null, funcParamObj);
 
-        // create the query
-        for(var i=0; i<qualifications.length; i++){
-            var fieldName = qualifications[i];
-            var value = data[fieldName];
-            cacheKey = util.format(cacheKey,value);
-        }
+  try {
+    var query = {};
 
-        // invalidate cache
-        var result = _getCacheService().del(cacheKey);
-        if (result && result===true){
-            console.log(MODULE_NAME + ": cache key invalidated [" + cacheKey + "]");
-        }else{
-            console.log(MODULE_NAME + ": cache key invalidation FAIL [" + cacheKey + "]");
-        }
-
-        /** callback with funcParamObj updated - maybe */
-        funcParamObj.payload = data;
-        onExecuteComplete(null, funcParamObj);
-
-    }catch(error){
-
-        /** dispatch the error to the next op in chain */
-        onExecuteComplete(error,funcParamObj);
-
+    // create the query
+    for (var i = 0; i < qualifications.length; i++) {
+      var fieldName = qualifications[i];
+      var value = data[fieldName];
+      cacheKey = util.format(cacheKey, value);
     }
+
+    // invalidate cache
+    var result = _getCacheService().del(cacheKey);
+    if (result && result === true) {
+      console.log(MODULE_NAME + ": cache key invalidated [" + cacheKey + "]");
+    } else {
+      console.log(MODULE_NAME + ": cache key invalidation FAIL [" + cacheKey + "]");
+    }
+
+
+  } catch (error) {
+
+    /** dispatch the error to the next op in chain */
+    onExecuteComplete(error, funcParamObj);
+
+  }
 }
 
 /**
@@ -65,13 +66,14 @@ function _invalidate(funcParamObj,onExecuteComplete){
  * @returns {*}
  * @private
  */
-function _getCacheService(){
-    if(CacheService){
-        return CacheService;
-    }else{
-        return require('../objectFactory/ObjectFactory').cacheService;
-    }
+function _getCacheService() {
+  if (CacheService) {
+    return CacheService;
+  } else {
+    return require('../objectFactory/ObjectFactory').cacheService;
+  }
 }
 
 /** exports */
-exports.invalidate=_invalidate;
+exports.invalidate = _invalidate;
+exports.invoke = _invalidate;
